@@ -1,7 +1,20 @@
+#include <string.h>
 #include <jni.h>
 #include <jvmti.h>
 
 FILE *method_file = NULL;
+int use_livemap = 0;
+int show_msig = 0;
+
+void open_file() {
+    char methodFileName[500];
+    if (use_livemap) {
+        sprintf(methodFileName, "/tmp/perf-%d.livemap", getpid());
+    } else {
+        sprintf(methodFileName, "/tmp/perf-%d.map", getpid());
+    }
+    method_file = fopen(methodFileName, "w");
+}
 
 void JNICALL
 cbVMInit(jvmtiEnv *jvmti_env,
@@ -11,16 +24,11 @@ cbVMInit(jvmtiEnv *jvmti_env,
         open_file();
 }
 
-void open_file() {
-    char methodFileName[500];
-    sprintf(methodFileName, "/tmp/perf-%d.map", getpid());
-    method_file = fopen(methodFileName, "w");
-}
-
 static void JNICALL
 cbVMStart(jvmtiEnv *jvmti, JNIEnv *env) {
     jvmtiJlocationFormat format;
     (*jvmti)->GetJLocationFormat(jvmti, &format);
+
     //printf("[tracker] VMStart LocationFormat: %d\n", format);
 }
 
@@ -32,21 +40,27 @@ cbCompiledMethodLoad(jvmtiEnv *env,
             jint map_length,
             const jvmtiAddrLocationMap* map,
             const void* compile_info) {
-    int i;
-
+    char *csig;
     char *name;
     char *msig;
-    (*env)->GetMethodName(env, method, &name, &msig, NULL);
+    int i;
 
     jclass class;
     (*env)->GetMethodDeclaringClass(env, method, &class);
-    char *csig;
     (*env)->GetClassSignature(env, class, &csig, NULL);
 
-    fprintf(method_file, "%lx %x %s.%s%s\n", code_addr, code_size, csig, name, msig);
+    if (show_msig) {
+        (*env)->GetMethodName(env, method, &name, &msig, NULL);
+        fprintf(method_file, "%lx %x %s.%s%s\n", (long unsigned int)code_addr, code_size, csig, name, msig);
+        (*env)->Deallocate(env, msig);
+    } else {
+        (*env)->GetMethodName(env, method, &name, NULL, NULL);
+        fprintf(method_file, "%lx %x %s.%s\n", (long unsigned int)code_addr, code_size, csig, name);
+    }
+
     fflush(method_file);
+
     (*env)->Deallocate(env, name);
-    (*env)->Deallocate(env, msig);
     (*env)->Deallocate(env, csig);
 
     /*for (i = 0; i < map_length; i++) {
@@ -62,8 +76,9 @@ cbDynamicCodeGenerated(jvmtiEnv *jvmti_env,
     if (!method_file)
         open_file();
 
-    fprintf(method_file, "%lx %x %s\n", address, length, name);
+    fprintf(method_file, "%lx %x %s\n", (long unsigned int)address, length, name);
     fflush(method_file);
+
     //printf("[tracker] Code generated: %s %lx %x\n", name, address, length);
 }
 
@@ -72,6 +87,23 @@ cbCompiledMethodUnload(jvmtiEnv *jvmti_env,
             jmethodID method,
             const void* code_addr) {
     //printf("[tracker] Unloaded %ld code_addr: 0x%lx\n", method, code_addr);
+}
+
+static void
+parse_agent_options(char *options)
+{
+    if (options == NULL)
+        return;
+
+    if (strstr(options, "livemap")) {
+        use_livemap = 1;
+    }
+
+    if (strstr(options, "msig")) {
+        show_msig = 1;
+    }
+
+    // add error checking and tokenizing, esp. if more options are added.
 }
 
 JNIEXPORT jint JNICALL
@@ -87,8 +119,7 @@ Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
     // If res!=JNI_OK generate an error.
 
     // Parse the options supplied to this agent on the command line.
-    //parse_agent_options(options);
-    // If options don't parse, do you want this to be an error?
+    parse_agent_options(options);
 
     // Clear the capabilities structure and set the ones you need.
     (void)memset(&capabilities,0, sizeof(capabilities));
@@ -130,5 +161,3 @@ Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
 
     return JNI_OK; // Indicates to the VM that the agent loaded OK.
 }
-
-
