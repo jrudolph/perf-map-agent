@@ -22,7 +22,7 @@ sudo perf top
 
 **msig**: Use of `-agentpath:<dir>/libperfmap.so=msig` will include the method signature in the symbol.
 
-**livemap**: Use of `-agentpath:<dir>/libperfmap.so=livemap` will write the map file to /tmp/perf-_pid_.livemap instead. This allows you to add your own software to tidy this file and write it to the ".map" file that perf expects.
+**livemap**: Use of `-agentpath:<dir>/libperfmap.so=livemap` will write the map file to /tmp/perf-pid._livemap_ instead. This allows you to add your own software to tidy this file and write it to the ".map" file that perf expects.
 
 These can be combined. Eg, "msig,livemap".
 
