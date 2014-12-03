@@ -44,7 +44,7 @@ cbCompiledMethodLoad(jvmtiEnv *env,
     (*env)->GetClassSignature(env, class, &csig, NULL);
 
     fprintf(method_file, "%lx %x %s.%s%s\n", code_addr, code_size, csig, name, msig);
-    fsync(fileno(method_file));
+    fflush(method_file);
     (*env)->Deallocate(env, name);
     (*env)->Deallocate(env, msig);
     (*env)->Deallocate(env, csig);
@@ -63,6 +63,7 @@ cbDynamicCodeGenerated(jvmtiEnv *jvmti_env,
         open_file();
 
     fprintf(method_file, "%lx %x %s\n", address, length, name);
+    fflush(method_file);
     //printf("[tracker] Code generated: %s %lx %x\n", name, address, length);
 }
 
