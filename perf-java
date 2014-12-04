@@ -1,0 +1,10 @@
+PID=$1
+OPTIONS=$2
+
+if [ -p $JAVA_HOME ]; then
+  JAVA_HOME=/usr/lib/jvm/default-java
+fi
+
+java -cp attach-main.jar:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID $OPTIONS
+sudo chown root:root /tmp/perf-$PID.map
+sudo perf top -p $PID

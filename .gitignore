@@ -3,3 +3,5 @@ CMakeCache.txt
 cmake_install.cmake
 *.so
 Makefile
+*~
+attach-main.jar
