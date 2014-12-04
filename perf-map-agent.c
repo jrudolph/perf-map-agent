@@ -36,6 +36,10 @@ void ensure_open() {
     if (!method_file)
         method_file = perf_map_open(getpid());
 }
+void ensure_closed() {
+    perf_map_close(method_file);
+    method_file = NULL;
+}
 
 static int get_line_number(jvmtiLineNumberEntry *table, jint entry_count, jlocation loc) {
   int i;
@@ -190,6 +194,7 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
     (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD);
     set_notification_mode(jvmti, JVMTI_DISABLE);
+    ensure_closed();
 
     // FAIL to get the JVM to maybe unload this lib (untested)
     return 1;
