@@ -23,14 +23,6 @@ You can add a comma separated list of options to `perf-java` (or the `AttachOnce
 
  - `unfold`: create extra entries for every codeblock inside a method that was inlined from elsewhere (named &lt;inlined_method&gt; in &lt;root_method&gt;)
 
-## Options
-
-**msig**: Use of `-agentpath:<dir>/libperfmap.so=msig` will include the method signature in the symbol.
-
-**livemap**: Use of `-agentpath:<dir>/libperfmap.so=livemap` will write the map file to /tmp/perf-pid._livemap_ instead. This allows you to add your own software to tidy this file and write it to the ".map" file that perf expects.
-
-These can be combined. Eg, "msig,livemap".
-
 ## Disclaimer
 
 I'm not a professional C code writer. The code is very "experimental", and it is e.g. missing checks for error conditions etc.. Use it at your own risk. You have been warned!
