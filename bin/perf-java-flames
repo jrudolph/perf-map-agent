@@ -2,6 +2,11 @@
 set -e
 #set -x
 
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root" 1>&2
+   exit 1
+fi
+
 PID=$1
 
 if [ -z $PERF_JAVA_TMP ]; then
@@ -30,6 +35,6 @@ if [ -z $PERF_FLAME_OUTPUT ]; then
 fi
 
 $PERF_MAP_DIR/bin/perf-java-record-stack $*
-sudo perf script -i $PERF_DATA_FILE > $STACKS
+perf script -i $PERF_DATA_FILE > $STACKS
 $FLAMEGRAPH_DIR/stackcollapse-perf.pl $STACKS | tee $COLLAPSED | $FLAMEGRAPH_DIR/flamegraph.pl --color=java > $PERF_FLAME_OUTPUT
 echo "Flame graph SVG written to PERF_FLAME_OUTPUT='`readlink -f $PERF_FLAME_OUTPUT`'."
