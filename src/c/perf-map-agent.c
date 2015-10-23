@@ -92,7 +92,7 @@ static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t n
 }
 
 void generate_single_entry(jvmtiEnv *jvmti, jmethodID method, const void *code_addr, jint code_size) {
-    char entry[100];
+    char entry[128];
     sig_string(jvmti, method, entry, sizeof(entry));
     perf_map_write_entry(method_file, code_addr, code_size, entry);
 }
