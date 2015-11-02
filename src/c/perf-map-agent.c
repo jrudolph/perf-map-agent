@@ -59,6 +59,9 @@ static int get_line_number(jvmtiLineNumberEntry *table, jint entry_count, jlocat
 }
 
 void class_name_from_sig(char *dest, size_t dest_size, const char *sig, bool short_classname) {
+    if (sig == NULL) {
+      strncpy(dest, "UNKNOWN_CLASS_NAME", dest_size);
+    }
     if (sig[0] == 'L') {
         const char *src = NULL;
         if (short_classname) {
@@ -86,27 +89,48 @@ void class_name_from_sig(char *dest, size_t dest_size, const char *sig, bool sho
     }
 }
 
-static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t noutput, bool short_classname) {
-    char *name;
-    char *msig;
-    jclass class;
-    char *csig;
+void format_signature(char* output, size_t noutput,
+    char* class_name, char* method_name,
+    char* method_sig) {
+  if (print_method_signatures)
+      snprintf(output, noutput, "%s::%s%s", class_name, method_name, method_sig);
+  else
+      snprintf(output, noutput, "%s::%s", class_name, method_name);
+}
 
-    (*jvmti)->GetMethodName(jvmti, method, &name, &msig, NULL);
-    (*jvmti)->GetMethodDeclaringClass(jvmti, method, &class);
-    (*jvmti)->GetClassSignature(jvmti, class, &csig, NULL);
+static void sig_string(jvmtiEnv *jvmti, jmethodID method_id, char *output, size_t noutput, bool short_classname) {
+    char *method_name = NULL;
+    char *method_sig = NULL;
+    jclass class;
+    char *class_sig = NULL;
+
+    jvmtiError err;
+    err = (*jvmti)->GetMethodName(jvmti, method_id, &method_name, &method_sig, NULL);
+    if (err != JVMTI_ERROR_NONE) {
+        method_name = NULL;
+        method_sig = NULL;
+    }
+    err = (*jvmti)->GetMethodDeclaringClass(jvmti, method_id, &class);
+    if (err == JVMTI_ERROR_NONE) {
+        err = (*jvmti)->GetClassSignature(jvmti, class, &class_sig, NULL);
+        if (err != JVMTI_ERROR_NONE) {
+            class_sig = NULL;
+        }
+    }
+
 
     char class_name[NAME_BUFFER_SIZE];
-    class_name_from_sig(class_name, sizeof(class_name), csig, short_classname);
+    class_name_from_sig(class_name, sizeof(class_name), class_sig, short_classname);
+    if (method_name != NULL) {
+      format_signature(output, noutput, class_name, method_name, method_sig);
+    }
+    else {
+      format_signature(output, noutput, class_name, "UNKNOWN_METHOD", "(UNKNOWN_SIGNATURE)");
+    }
 
-    if (print_method_signatures)
-        snprintf(output, noutput, "%s::%s%s", class_name, name, msig);
-    else
-        snprintf(output, noutput, "%s::%s", class_name, name);
-
-    (*jvmti)->Deallocate(jvmti, name);
-    (*jvmti)->Deallocate(jvmti, msig);
-    (*jvmti)->Deallocate(jvmti, csig);
+    if (method_name != NULL) (*jvmti)->Deallocate(jvmti, method_name);
+    if (method_sig != NULL) (*jvmti)->Deallocate(jvmti, method_sig);
+    if (class_sig != NULL) (*jvmti)->Deallocate(jvmti, class_sig);
 }
 
 void generate_single_entry(jvmtiEnv *jvmti, jmethodID method, const void *code_addr, jint code_size) {
