@@ -31,6 +31,9 @@
 #include "perf-map-file.h"
 
 static const int NAME_BUFFER_SIZE = 2000;
+typedef int bool;
+#define true 1
+#define false 0
 
 FILE *method_file = NULL;
 int unfold_inlined_methods = 0;
@@ -55,22 +58,35 @@ static int get_line_number(jvmtiLineNumberEntry *table, jint entry_count, jlocat
   return -1;
 }
 
-void class_name_from_sig(char *dest, size_t dest_size, const char *sig) {
-    if (clean_class_names && sig[0] == 'L') {
-        const char *src = sig + 1;
-        int i;
-        for(i = 0; i < (dest_size - 1) && src[i]; i++) {
-            char c = src[i];
-            if (c == '/') c = '.';
-            if (c == ';') c = 0;
-            dest[i] = c;
+void class_name_from_sig(char *dest, size_t dest_size, const char *sig, bool short_classname) {
+    if (sig[0] == 'L') {
+        const char *src = NULL;
+        if (short_classname) {
+            src = strrchr(sig, '/');
         }
-        dest[i] = 0;
-    } else
+        if (src == NULL) {
+            src = sig + 1;
+        }
+        else {
+            src = src + 1; // skip the last '/'
+        }
+        if (clean_class_names) {
+            int i;
+            for(i = 0; i < (dest_size - 1) && src[i]; i++) {
+                char c = src[i];
+                if (c == '/') c = '.';
+                if (c == ';') c = 0;
+                dest[i] = c;
+            }
+            dest[i] = 0;
+        }
+    }
+    else {
         strncpy(dest, sig, dest_size);
+    }
 }
 
-static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t noutput) {
+static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t noutput, bool short_classname) {
     char *name;
     char *msig;
     jclass class;
@@ -81,12 +97,12 @@ static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t n
     (*jvmti)->GetClassSignature(jvmti, class, &csig, NULL);
 
     char class_name[NAME_BUFFER_SIZE];
-    class_name_from_sig(class_name, sizeof(class_name), csig);
+    class_name_from_sig(class_name, sizeof(class_name), csig, short_classname);
 
     if (print_method_signatures)
-        snprintf(output, noutput, "%s.%s%s", class_name, name, msig);
+        snprintf(output, noutput, "%s::%s%s", class_name, name, msig);
     else
-        snprintf(output, noutput, "%s.%s", class_name, name);
+        snprintf(output, noutput, "%s::%s", class_name, name);
 
     (*jvmti)->Deallocate(jvmti, name);
     (*jvmti)->Deallocate(jvmti, msig);
@@ -95,16 +111,16 @@ static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t n
 
 void generate_single_entry(jvmtiEnv *jvmti, jmethodID method, const void *code_addr, jint code_size) {
     char entry[NAME_BUFFER_SIZE];
-    sig_string(jvmti, method, entry, sizeof(entry));
+    sig_string(jvmti, method, entry, sizeof(entry), false);
     perf_map_write_entry(method_file, code_addr, code_size, entry);
 }
 
 void generate_unfolded_entry(jvmtiEnv *jvmti, jmethodID method, char *buffer, size_t buffer_size, const char *root_name) {
     if (unfold_simple)
-        sig_string(jvmti, method, buffer, buffer_size);
+        sig_string(jvmti, method, buffer, buffer_size, false);
     else {
         char entry_name[NAME_BUFFER_SIZE];
-        sig_string(jvmti, method, entry_name, sizeof(entry_name));
+        sig_string(jvmti, method, entry_name, sizeof(entry_name), true);
         snprintf(buffer, buffer_size, "%s->%s", root_name, entry_name);
     }
 }
@@ -119,7 +135,7 @@ void generate_unfolded_entries(
         const void* compile_info) {
     const jvmtiCompiledMethodLoadRecordHeader *header = compile_info;
     char root_name[NAME_BUFFER_SIZE];
-    sig_string(jvmti, root_method, root_name, sizeof(root_name));
+    sig_string(jvmti, root_method, root_name, sizeof(root_name), false);
 
     // needs to accomodate: entry_name + " in " + root_name
     char inlined_name[sizeof(root_name) * 2 + 4];
