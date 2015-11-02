@@ -30,11 +30,19 @@
 
 #include "perf-map-file.h"
 
+static const int NAME_BUFFER_SIZE = 2000;
+typedef int bool;
+#define true 1
+#define false 0
+
 FILE *method_file = NULL;
-int unfold_inlined_methods = 0;
-int unfold_simple = 0;
-int print_method_signatures = 0;
-int clean_class_names = 0;
+bool unfold_inlined_methods = false;
+bool unfold_simple = false;
+bool print_method_signatures = false;
+bool clean_class_names = false;
+bool compact_inline_format = false;
+char* inline_delimiter = " in ";
+char* method_delimiter = ".";
 
 void open_map_file() {
     if (!method_file)
@@ -53,9 +61,22 @@ static int get_line_number(jvmtiLineNumberEntry *table, jint entry_count, jlocat
   return -1;
 }
 
-void class_name_from_sig(char *dest, size_t dest_size, const char *sig) {
-    if (clean_class_names && sig[0] == 'L') {
-        const char *src = sig + 1;
+void class_name_from_sig(char *dest, size_t dest_size, const char *sig, bool short_classname) {
+    if (sig == NULL) {
+      strncpy(dest, "UNKNOWN_CLASS_NAME", dest_size);
+      return;
+    }
+    if (sig[0] == 'L' && clean_class_names) {
+        const char *src = NULL;
+        if (short_classname && compact_inline_format) {
+            src = strrchr(sig, '/');
+        }
+        if (src == NULL) {
+            src = sig + 1; // skip the initial 'L'
+        }
+        else {
+            src = src + 1; // skip the last '/'
+        }
         int i;
         for(i = 0; i < (dest_size - 1) && src[i]; i++) {
             char c = src[i];
@@ -64,96 +85,133 @@ void class_name_from_sig(char *dest, size_t dest_size, const char *sig) {
             dest[i] = c;
         }
         dest[i] = 0;
-    } else
+    }
+    else {
         strncpy(dest, sig, dest_size);
+    }
 }
 
-static void sig_string(jvmtiEnv *jvmti, jmethodID method, char *output, size_t noutput) {
-    char *name;
-    char *msig;
+void format_signature(char* output, size_t noutput,
+    char* class_name, char* method_name,
+    char* method_sig) {
+  if (print_method_signatures)
+      snprintf(output, noutput, "%s%s%s%s", class_name,  method_delimiter, method_name, method_sig);
+  else
+      snprintf(output, noutput, "%s%s%s", class_name, method_delimiter, method_name);
+}
+
+static void sig_string(jvmtiEnv *jvmti, jmethodID method_id, char *output, size_t noutput, bool short_classname) {
+    char *method_name = NULL;
+    char *method_sig = NULL;
     jclass class;
-    char *csig;
+    char *class_sig = NULL;
 
-    (*jvmti)->GetMethodName(jvmti, method, &name, &msig, NULL);
-    (*jvmti)->GetMethodDeclaringClass(jvmti, method, &class);
-    (*jvmti)->GetClassSignature(jvmti, class, &csig, NULL);
+    jvmtiError err;
+    err = (*jvmti)->GetMethodName(jvmti, method_id, &method_name, &method_sig, NULL);
+    if (err != JVMTI_ERROR_NONE) {
+        method_name = NULL;
+        method_sig = NULL;
+    }
+    err = (*jvmti)->GetMethodDeclaringClass(jvmti, method_id, &class);
+    if (err == JVMTI_ERROR_NONE) {
+        err = (*jvmti)->GetClassSignature(jvmti, class, &class_sig, NULL);
+        if (err != JVMTI_ERROR_NONE) {
+            class_sig = NULL;
+        }
+    }
 
-    char class_name[2000];
-    class_name_from_sig(class_name, sizeof(class_name), csig);
 
-    if (print_method_signatures)
-        snprintf(output, noutput, "%s.%s%s", class_name, name, msig);
-    else
-        snprintf(output, noutput, "%s.%s", class_name, name);
+    char class_name[NAME_BUFFER_SIZE];
+    class_name_from_sig(class_name, sizeof(class_name), class_sig, short_classname);
+    if (method_name != NULL) {
+      format_signature(output, noutput, class_name, method_name, method_sig);
+    }
+    else {
+      format_signature(output, noutput, class_name, "UNKNOWN_METHOD", "(UNKNOWN_SIGNATURE)");
+    }
 
-    (*jvmti)->Deallocate(jvmti, name);
-    (*jvmti)->Deallocate(jvmti, msig);
-    (*jvmti)->Deallocate(jvmti, csig);
+    if (method_name != NULL) (*jvmti)->Deallocate(jvmti, method_name);
+    if (method_sig != NULL) (*jvmti)->Deallocate(jvmti, method_sig);
+    if (class_sig != NULL) (*jvmti)->Deallocate(jvmti, class_sig);
 }
 
 void generate_single_entry(jvmtiEnv *jvmti, jmethodID method, const void *code_addr, jint code_size) {
-    char entry[2000];
-    sig_string(jvmti, method, entry, sizeof(entry));
+    char entry[NAME_BUFFER_SIZE];
+    sig_string(jvmti, method, entry, sizeof(entry), false);
     perf_map_write_entry(method_file, code_addr, code_size, entry);
 }
 
 void generate_unfolded_entry(jvmtiEnv *jvmti, jmethodID method, char *buffer, size_t buffer_size, const char *root_name) {
     if (unfold_simple)
-        sig_string(jvmti, method, buffer, buffer_size);
+        sig_string(jvmti, method, buffer, buffer_size, false);
     else {
-        char entry_name[2000];
-        sig_string(jvmti, method, entry_name, sizeof(entry_name));
-        snprintf(buffer, buffer_size, "%s in %s", entry_name, root_name);
+        char entry_name[NAME_BUFFER_SIZE];
+        sig_string(jvmti, method, entry_name, sizeof(entry_name), true);
+        snprintf(buffer, buffer_size, "%s%s%s", root_name,inline_delimiter, entry_name);
     }
 }
 
 void generate_unfolded_entries(
         jvmtiEnv *jvmti,
-        jmethodID method,
+        jmethodID root_method,
         jint code_size,
         const void* code_addr,
         jint map_length,
         const jvmtiAddrLocationMap* map,
         const void* compile_info) {
-    int i;
     const jvmtiCompiledMethodLoadRecordHeader *header = compile_info;
-    char root_name[2000];
-    char entry_name[2000];
-    char entry[5000];
-    sig_string(jvmti, method, root_name, sizeof(root_name));
+    char root_name[NAME_BUFFER_SIZE];
+    sig_string(jvmti, root_method, root_name, sizeof(root_name), false);
+
+    // needs to accomodate: entry_name + " in " + root_name
+    char inlined_name[sizeof(root_name) * 2 + 4];
+
     if (header->kind == JVMTI_CMLR_INLINE_INFO) {
-        const char *entry_p;
         const jvmtiCompiledMethodLoadInlineRecord *record = (jvmtiCompiledMethodLoadInlineRecord *) header;
 
         const void *start_addr = code_addr;
-        jmethodID cur_method = method;
+        jmethodID cur_method = root_method;
+        // walk through the method meta data per PC to extract address range
+        // per inlined method.
+        int i;
         for (i = 0; i < record->numpcs; i++) {
             PCStackInfo *info = &record->pcinfo[i];
             jmethodID top_method = info->methods[0];
+            // as long as the top method remains the same we delay recording
             if (cur_method != top_method) {
+                // top method has changed, record the range for curr method
                 void *end_addr = info->pc;
-
-                if (top_method != method) {
-                    generate_unfolded_entry(jvmti, top_method, entry, sizeof(entry), root_name);
-                    entry_p = entry;
-                } else
+                const char *entry_p;
+                if (cur_method != root_method) {
+                    generate_unfolded_entry(jvmti, cur_method, inlined_name, sizeof(inlined_name), root_name);
+                    entry_p = inlined_name;
+                }
+                else {
                     entry_p = root_name;
-
+                }
                 perf_map_write_entry(method_file, start_addr, end_addr - start_addr, entry_p);
 
                 start_addr = info->pc;
                 cur_method = top_method;
             }
         }
+
+        // record the last range if there's a gap
         if (start_addr != code_addr + code_size) {
             const void *end_addr = code_addr + code_size;
 
-            generate_unfolded_entry(jvmti, cur_method, entry, sizeof(entry), root_name);
-
+            const char *entry_p;
+            if (cur_method != root_method) {
+                generate_unfolded_entry(jvmti, cur_method, inlined_name, sizeof(inlined_name), root_name);
+                entry_p = inlined_name;
+            }
+            else {
+                entry_p = root_name;
+            }
             perf_map_write_entry(method_file, start_addr, end_addr - start_addr, entry_p);
         }
     } else
-        generate_single_entry(jvmti, method, code_addr, code_size);
+        generate_single_entry(jvmti, root_method, code_addr, code_size);
 }
 
 static void JNICALL
@@ -219,6 +277,12 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple;
     print_method_signatures = strstr(options, "msig") != NULL;
     clean_class_names = strstr(options, "dottedclass") != NULL;
+    compact_inline_format = strstr(options, "compactinline") != NULL;
+
+    if(compact_inline_format) {
+        inline_delimiter = "->";
+        method_delimiter = "::";
+    }
 
     jvmtiEnv *jvmti;
     (*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
