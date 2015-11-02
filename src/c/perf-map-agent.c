@@ -36,10 +36,13 @@ typedef int bool;
 #define false 0
 
 FILE *method_file = NULL;
-int unfold_inlined_methods = 0;
-int unfold_simple = 0;
-int print_method_signatures = 0;
-int clean_class_names = 0;
+bool unfold_inlined_methods = false;
+bool unfold_simple = false;
+bool print_method_signatures = false;
+bool clean_class_names = false;
+bool compact_inline_format = false;
+char* inline_delimiter = " in ";
+char* method_delimiter = ".";
 
 void open_map_file() {
     if (!method_file)
@@ -61,28 +64,27 @@ static int get_line_number(jvmtiLineNumberEntry *table, jint entry_count, jlocat
 void class_name_from_sig(char *dest, size_t dest_size, const char *sig, bool short_classname) {
     if (sig == NULL) {
       strncpy(dest, "UNKNOWN_CLASS_NAME", dest_size);
+      return;
     }
-    if (sig[0] == 'L') {
+    if (sig[0] == 'L' && clean_class_names) {
         const char *src = NULL;
-        if (short_classname) {
+        if (short_classname && compact_inline_format) {
             src = strrchr(sig, '/');
         }
         if (src == NULL) {
-            src = sig + 1;
+            src = sig + 1; // skip the initial 'L'
         }
         else {
             src = src + 1; // skip the last '/'
         }
-        if (clean_class_names) {
-            int i;
-            for(i = 0; i < (dest_size - 1) && src[i]; i++) {
-                char c = src[i];
-                if (c == '/') c = '.';
-                if (c == ';') c = 0;
-                dest[i] = c;
-            }
-            dest[i] = 0;
+        int i;
+        for(i = 0; i < (dest_size - 1) && src[i]; i++) {
+            char c = src[i];
+            if (c == '/') c = '.';
+            if (c == ';') c = 0;
+            dest[i] = c;
         }
+        dest[i] = 0;
     }
     else {
         strncpy(dest, sig, dest_size);
@@ -93,9 +95,9 @@ void format_signature(char* output, size_t noutput,
     char* class_name, char* method_name,
     char* method_sig) {
   if (print_method_signatures)
-      snprintf(output, noutput, "%s::%s%s", class_name, method_name, method_sig);
+      snprintf(output, noutput, "%s%s%s%s", class_name,  method_delimiter, method_name, method_sig);
   else
-      snprintf(output, noutput, "%s::%s", class_name, method_name);
+      snprintf(output, noutput, "%s%s%s", class_name, method_delimiter, method_name);
 }
 
 static void sig_string(jvmtiEnv *jvmti, jmethodID method_id, char *output, size_t noutput, bool short_classname) {
@@ -145,7 +147,7 @@ void generate_unfolded_entry(jvmtiEnv *jvmti, jmethodID method, char *buffer, si
     else {
         char entry_name[NAME_BUFFER_SIZE];
         sig_string(jvmti, method, entry_name, sizeof(entry_name), true);
-        snprintf(buffer, buffer_size, "%s->%s", root_name, entry_name);
+        snprintf(buffer, buffer_size, "%s%s%s", root_name,inline_delimiter, entry_name);
     }
 }
 
@@ -275,6 +277,12 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple;
     print_method_signatures = strstr(options, "msig") != NULL;
     clean_class_names = strstr(options, "dottedclass") != NULL;
+    compact_inline_format = strstr(options, "compactinline") != NULL;
+
+    if(compact_inline_format) {
+        inline_delimiter = "->";
+        method_delimiter = "::";
+    }
 
     jvmtiEnv *jvmti;
     (*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
