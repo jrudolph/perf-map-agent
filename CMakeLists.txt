@@ -28,3 +28,4 @@ set(CMAKE_JAVA_TARGET_OUTPUT_DIR ${OUTDIR})
 
 #message(STATUS "LIBS: ${Java_JAR_EXECUTABLE} ${Java_INCLUDE_DIRS} incl: ${CMAKE_JAVA_INCLUDE_PATH} output_dir: ${CMAKE_JAVA_TARGET_OUTPUT_DIR}")
 add_jar(attach-main src/java/AttachOnce.java ENTRY_POINT net/virtualvoid/perf/AttachOnce OUTPUT_DIR ${OUTDIR})
+add_jar(merge-perf-map src/java/MergePerfMap.java ENTRY_POINT MergePerfMap OUTPUT_DIR ${OUTDIR})

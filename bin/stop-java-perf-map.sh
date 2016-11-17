@@ -18,6 +18,6 @@ fi
 
 (cd $PERF_MAP_DIR/out && java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID stop)
 
-SORTED=${PERF_MAP_FILE}.sorted
-cat $PERF_MAP_FILE | sort | uniq -w 12 >$SORTED
-mv $SORTED $PERF_MAP_FILE
+RAW=${PERF_MAP_FILE}.raw
+mv $PERF_MAP_FILE $RAW
+cat $RAW | java -cp $PERF_MAP_DIR/out/merge-perf-map.jar MergePerfMap >$PERF_MAP_FILE
