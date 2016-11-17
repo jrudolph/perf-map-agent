@@ -318,10 +318,15 @@ jvmtiError set_callbacks(jvmtiEnv *jvmti) {
     return (*jvmti)->SetEventCallbacks(jvmti, &callbacks, (jint)sizeof(callbacks));
 }
 
+bool _initialized = false;
+
+JNIEXPORT jint JNICALL
+Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
+    return Agent_OnAttach(vm, options, reserved);
+}
+
 JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
-    open_map_file();
-
     unfold_simple = strstr(options, "unfoldsimple") != NULL;
     unfold_all = strstr(options, "unfoldall") != NULL;
     unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple || unfold_all;
@@ -333,13 +338,35 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     jvmtiEnv *jvmti;
     (*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
     enable_capabilities(jvmti);
-    set_callbacks(jvmti);
-    set_notification_mode(jvmti, JVMTI_ENABLE);
-    (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
-    (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD);
-    set_notification_mode(jvmti, JVMTI_DISABLE);
-    close_map_file();
+
+    if (!_initialized) {
+        set_callbacks(jvmti);
+        _initialized = true;
+    }
+
+    char filename[128];
+    perf_map_file_name(filename, sizeof(filename));
+    if (strstr(options, "start") != NULL) {
+        printf("%s collecting started\n", filename);
+
+        open_map_file();
+
+        set_notification_mode(jvmti, JVMTI_ENABLE);
+        (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
+        (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD);
+    } else if (strstr(options, "stop") != NULL) {
+        set_notification_mode(jvmti, JVMTI_DISABLE);
+        close_map_file();
+
+        printf("%s collecting stopped\n", filename);
+    } else {
+        printf("User {start | stop} agent command\n");
+    }
 
     return 0;
 }
 
+JNIEXPORT void JNICALL
+Agent_OnUnload(JavaVM *vm) {
+    close_map_file();
+}
