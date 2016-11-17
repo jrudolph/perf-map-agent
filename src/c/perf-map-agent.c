@@ -21,7 +21,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <sys/types.h>
 
@@ -45,7 +44,7 @@ bool debug_dump_unfold_entries = false;
 FILE *method_file = NULL;
 void open_map_file() {
     if (!method_file)
-        method_file = perf_map_open(getpid());
+        method_file = perf_map_open();
 }
 void close_map_file() {
     perf_map_close(method_file);
