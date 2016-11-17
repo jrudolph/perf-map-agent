@@ -36,13 +36,22 @@ public class AttachOnce {
     static void loadAgent(String pid, String options) throws Exception {
         VirtualMachine vm = VirtualMachine.attach(pid);
         try {
-            File lib = new File("libperfmap.so");
+            final File lib;
+            String os = System.getProperty("os.name").toLowerCase();
+            if (os.contains("linux"))
+                lib = new File("libperfmap.so");
+            else if (os.contains("mac os x"))
+                lib = new File("libperfmap.dylib");
+            else
+                throw new IllegalArgumentException("Unsupported OS: " + os);
+
             String fullPath = lib.getAbsolutePath();
             if (!lib.exists()) {
                 System.out.printf("Expected libperfmap.so at '%s' but it didn't exist.\n", fullPath);
                 System.exit(1);
+            } else {
+                vm.loadAgentPath(fullPath, options);
             }
-            else vm.loadAgentPath(fullPath, options);
         } catch(com.sun.tools.attach.AgentInitializationException e) {
             // rethrow all but the expected exception
             if (!e.getMessage().equals("Agent_OnAttach failed")) throw e;
