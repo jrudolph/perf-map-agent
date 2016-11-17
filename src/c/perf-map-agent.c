@@ -160,7 +160,7 @@ void write_unfolded_entry(
             //printf("At %d method is %d len %d remaining %d\n", i, info->methods[i], strlen(full_name), sizeof(full_name) - 1 - strlen(full_name));
             sig_string(jvmti, info->methods[i], inlined_name, sizeof(inlined_name));
             strncat(full_name, inlined_name, sizeof(full_name) - 1 - strlen(full_name)); // TODO optimize
-            if (i != 0) strncat(full_name, "->", sizeof(full_name));
+            if (i != 0) strncat(full_name, "->", sizeof (full_name) - 1 - strlen(full_name));
         }
         entry_p = full_name;
     } else {
