@@ -297,7 +297,7 @@ void set_notification_mode(jvmtiEnv *jvmti, jvmtiEventMode mode) {
 jvmtiError enable_capabilities(jvmtiEnv *jvmti) {
     jvmtiCapabilities capabilities;
 
-    memset(&capabilities,0, sizeof(capabilities));
+    memset(&capabilities, 0, sizeof(capabilities));
     capabilities.can_generate_all_class_hook_events  = 1;
     capabilities.can_tag_objects                     = 1;
     capabilities.can_generate_object_free_events     = 1;
