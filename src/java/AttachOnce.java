@@ -23,38 +23,38 @@ package net.virtualvoid.perf;
 import java.io.File;
 
 import com.sun.tools.attach.VirtualMachine;
+import com.sun.tools.javac.code.Attribute;
+
 import java.lang.management.ManagementFactory;
+import java.util.Arrays;
 
 public class AttachOnce {
     public static void main(String[] args) throws Exception {
-        String pid = args[0];
-        String options = "";
-        if (args.length > 1) options = args[1];
-        loadAgent(pid, options);
+        if (args.length < 2) {
+            System.err.println(
+                    "Usage:" +
+                    "\tjava ... <PID> <*.so> [<options>]");
+            System.exit(-1);
+        }
+
+        final String pid = args[0];
+        final String so = args[1];
+        final CharSequence[] options = Arrays.copyOfRange(args, 2, args.length);
+
+        loadAgent(pid, so, String.join(" ", options));
     }
 
-    static void loadAgent(String pid, String options) throws Exception {
-        VirtualMachine vm = VirtualMachine.attach(pid);
+    static void loadAgent(final String pid, final String so, final String options) throws Exception {
+        final VirtualMachine vm = VirtualMachine.attach(pid);
         try {
-            final File lib;
-            String os = System.getProperty("os.name").toLowerCase();
-            if (os.contains("linux"))
-                lib = new File("libperfmap.so");
-            else if (os.contains("mac os x"))
-                lib = new File("libperfmap.dylib");
-            else
-                throw new IllegalArgumentException("Unsupported OS: " + os);
-
-            String fullPath = lib.getAbsolutePath();
+            final File lib = new File(so);
+            final String fullPath = lib.getAbsolutePath();
             if (!lib.exists()) {
-                System.out.printf("Expected libperfmap.so at '%s' but it didn't exist.\n", fullPath);
+                System.out.printf("Expected '%s' at '%s' but it didn't exist.\n", so, fullPath);
                 System.exit(1);
-            } else {
-                vm.loadAgentPath(fullPath, options);
             }
-        } catch(com.sun.tools.attach.AgentInitializationException e) {
-            // rethrow all but the expected exception
-            if (!e.getMessage().equals("Agent_OnAttach failed")) throw e;
+
+            vm.loadAgentPath(fullPath, options);
         } finally {
             vm.detach();
         }

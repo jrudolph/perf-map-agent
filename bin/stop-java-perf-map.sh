@@ -16,7 +16,7 @@ fi
 [ -d "$JAVA_HOME" ] || JAVA_HOME=/etc/alternatives/java_sdk
 [ -d "$JAVA_HOME" ] || (echo "JAVA_HOME directory at '$JAVA_HOME' does not exist." && false)
 
-(cd $PERF_MAP_DIR/out && java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID stop)
+java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID $PERF_MAP_DIR/out/libperfmap.so stop
 
 RAW=${PERF_MAP_FILE}.raw
 mv $PERF_MAP_FILE $RAW
