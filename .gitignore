@@ -1,6 +1,9 @@
+.idea
 CMakeFiles
 CMakeCache.txt
 cmake_install.cmake
 Makefile
+nbproject
 *~
+*.iml
 out

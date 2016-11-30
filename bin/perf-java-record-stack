@@ -21,6 +21,9 @@ if [ -z "$PERF_DATA_FILE" ]; then
   PERF_DATA_FILE=$PERF_JAVA_TMP/perf-$PID.data
 fi
 
+echo "Starting Java perf map..."
+$PERF_MAP_DIR/bin/start-java-perf-map.sh $PID "$PERF_MAP_OPTIONS"
 echo "Recording events for $PERF_RECORD_SECONDS seconds (adapt by setting PERF_RECORD_SECONDS)"
-sudo perf record -F $PERF_RECORD_FREQ -o $PERF_DATA_FILE -g -p $* -- sleep $PERF_RECORD_SECONDS
-$PERF_MAP_DIR/bin/create-java-perf-map.sh $PID "$PERF_MAP_OPTIONS"
+perf record -F $PERF_RECORD_FREQ -o $PERF_DATA_FILE -g -p $* -- sleep $PERF_RECORD_SECONDS
+echo "Stopping Java perf map..."
+$PERF_MAP_DIR/bin/stop-java-perf-map.sh $PID

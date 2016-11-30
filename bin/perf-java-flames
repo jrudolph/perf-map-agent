@@ -29,7 +29,10 @@ if [ -z "$PERF_FLAME_OPTS" ]; then
     PERF_FLAME_OPTS="--color=java"
 fi
 
+echo "Recording stacks..."
 $PERF_MAP_DIR/bin/perf-java-record-stack $*
-sudo perf script -i $PERF_DATA_FILE > $STACKS
+echo "Extracting stacks..."
+perf script -i $PERF_DATA_FILE > $STACKS
+echo "Collapsing stacks..."
 $FLAMEGRAPH_DIR/stackcollapse-perf.pl $STACKS | tee $COLLAPSED | $FLAMEGRAPH_DIR/flamegraph.pl $PERF_FLAME_OPTS > $PERF_FLAME_OUTPUT
 echo "Flame graph SVG written to PERF_FLAME_OUTPUT='`readlink -f $PERF_FLAME_OUTPUT`'."

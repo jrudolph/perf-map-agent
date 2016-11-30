@@ -20,17 +20,23 @@
 
 #include <sys/types.h>
 #include <stdio.h>
-
-#include <error.h>
-#include <errno.h>
+#include <unistd.h>
 
 #include "perf-map-file.h"
 
-FILE *perf_map_open(pid_t pid) {
+void perf_map_file_name(char *name, size_t size) {
+    snprintf(name, size, "/tmp/perf-%d.map", getpid());
+}
+
+FILE *perf_map_open() {
     char filename[500];
-    snprintf(filename, sizeof(filename), "/tmp/perf-%d.map", pid);
+    perf_map_file_name(filename, sizeof(filename));
     FILE * res = fopen(filename, "w");
-    if (!res) error(0, errno, "Couldn't open %s.", filename);
+    if (!res) {
+        char text[1024];
+        snprintf(text, sizeof(text), "Couldn't open %s.", filename);
+        perror(text);
+    }
     return res;
 }
 
