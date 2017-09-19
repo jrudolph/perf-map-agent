@@ -21,6 +21,7 @@ if [[ "$LINUX" == "1" ]]; then
     exit 1
   fi
   TARGET_UID=$(awk '/^Uid:/{print $2}' /proc/$PID/status)
+  TARGET_GID=$(awk '/^Gid:/{print $2}' /proc/$PID/status)
 fi
 
 if [ -z "$JAVA_HOME" ]; then
@@ -37,7 +38,7 @@ fi
 
 if [[ "$LINUX" == "1" ]]; then
   sudo rm $PERF_MAP_FILE -f
-  (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
+  (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
   sudo chown root:root $PERF_MAP_FILE
 else
   rm -f $PERF_MAP_FILE
