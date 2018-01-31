@@ -318,16 +318,31 @@ jvmtiError set_callbacks(jvmtiEnv *jvmti) {
 }
 
 JNIEXPORT jint JNICALL
+Agent_OnLoad(JavaVM *vm, char *options, void *reserved) {
+    return Agent_OnAttach(vm, options, reserved);
+}
+
+JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     open_map_file();
 
-    unfold_simple = strstr(options, "unfoldsimple") != NULL;
-    unfold_all = strstr(options, "unfoldall") != NULL;
-    unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple || unfold_all;
-    print_method_signatures = strstr(options, "msig") != NULL;
-    print_source_loc = strstr(options, "sourcepos") != NULL;
-    clean_class_names = strstr(options, "dottedclass") != NULL;
-    debug_dump_unfold_entries = strstr(options, "debug_dump_unfold_entries") != NULL;
+    if (options != NULL) {
+        unfold_simple = strstr(options, "unfoldsimple") != NULL;
+        unfold_all = strstr(options, "unfoldall") != NULL;
+        unfold_inlined_methods = strstr(options, "unfold") != NULL || unfold_simple || unfold_all;
+        print_method_signatures = strstr(options, "msig") != NULL;
+        print_source_loc = strstr(options, "sourcepos") != NULL;
+        clean_class_names = strstr(options, "dottedclass") != NULL;
+        debug_dump_unfold_entries = strstr(options, "debug_dump_unfold_entries") != NULL;
+    } else {
+        unfold_simple = false;
+        unfold_all = false;
+        unfold_inlined_methods = false;
+        print_method_signatures = false;
+        print_source_loc = false;
+        clean_class_names = false;
+        debug_dump_unfold_entries = false;
+    }
 
     jvmtiEnv *jvmti;
     (*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
@@ -336,9 +351,11 @@ Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     set_notification_mode(jvmti, JVMTI_ENABLE);
     (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_DYNAMIC_CODE_GENERATED);
     (*jvmti)->GenerateEvents(jvmti, JVMTI_EVENT_COMPILED_METHOD_LOAD);
-    set_notification_mode(jvmti, JVMTI_DISABLE);
-    close_map_file();
 
     return 0;
 }
 
+JNIEXPORT void JNICALL
+Agent_OnUnload(JavaVM* vm) {
+    close_map_file();
+}
