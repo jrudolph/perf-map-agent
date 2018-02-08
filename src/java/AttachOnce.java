@@ -45,10 +45,21 @@ public class AttachOnce {
             }
             String fullPath = lib.getAbsolutePath();
             if (!lib.exists()) {
-                System.out.printf("Expected libperfmap.so at '%s' but it didn't exist.\n", fullPath);
-                System.exit(1);
+                String [] javaLibPath = System.getProperty("java.library.path").split(":");
+                boolean foundInLibPath = false;
+                for (String path: javaLibPath) {
+                    File f = new File(path + File.separator + "libperfmap.so");
+                    if(f.exists()) {
+                        foundInLibPath = true;
+                        fullPath = f.getAbsolutePath();
+                    }
+                }
+                if (!foundInLibPath) {
+                    System.out.printf("Expected libperfmap.so at '%s' or within java.library.path but it didn't exist in either.\n", fullPath);
+                    System.exit(1);
+                }
             }
-            else vm.loadAgentPath(fullPath, options);
+            vm.loadAgentPath(fullPath, options);
         } catch(com.sun.tools.attach.AgentInitializationException e) {
             // rethrow all but the expected exception
             if (!e.getMessage().equals("Agent_OnAttach failed")) throw e;
