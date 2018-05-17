@@ -20,7 +20,7 @@ INCLUDE_DIRECTORIES(${JAVA_INCLUDE_PATH2})
 
 add_library(perfmap SHARED src/c/perf-map-agent.c src/c/perf-map-file.c)
 
-find_package(Java REQUIRED)
+find_package(Java REQUIRED Runtime)
 include(UseJava)
 
 set(CMAKE_JAVA_INCLUDE_PATH ${JAVA_INCLUDE_PATH}/../lib/tools.jar)
