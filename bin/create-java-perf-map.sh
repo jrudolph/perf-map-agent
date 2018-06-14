@@ -34,6 +34,7 @@ if [ -z "$JAVA_HOME" ]; then
   fi
 fi
 [ -d "$JAVA_HOME" ] || (echo "JAVA_HOME directory at '$JAVA_HOME' does not exist." && false)
+[ -f "$JAVA_HOME/lib/tools.jar" ] || (echo "'tools.jar' does not present in '$JAVA_HOME/lib'." && false)
 
 
 if [[ "$LINUX" == "1" ]]; then
