@@ -21,6 +21,9 @@
 package net.virtualvoid.perf;
 
 import java.io.File;
+import java.io.FileInputStream;
+
+import java.text.MessageFormat;
 
 import com.sun.tools.attach.VirtualMachine;
 import java.lang.management.ManagementFactory;
@@ -30,7 +33,29 @@ public class AttachOnce {
     public static void main(String[] args) throws Exception {
         String pid = args[0];
         String options = "";
-        if (args.length > 1) options = args[1];
+        if (args.length == 8) { // objdump
+            assert(args[0].startsWith("--start-address="));
+            String addr = args[0].substring("--start-address=".length());
+            //long addrl = Long.parseLong(addr, 16); // sanity check
+            options = "disasm="+addr;
+
+            MessageFormat format = new MessageFormat("/tmp/perf-{0}.map");
+            pid = (String) format.parse(args[7])[0];
+            System.err.println("Got address "+addr+" and pid "+pid);
+            loadAgent(pid, options);
+
+            byte[] buffer = new byte[10000];
+            FileInputStream fis = new FileInputStream("/tmp/test.output");
+            int read = fis.read(buffer);
+            while (read > 0) {
+                System.out.write(buffer, 0, read);
+                read = fis.read(buffer);
+            }
+
+            return;
+        } else if (args.length > 1) {
+            options = args[1];
+        }
         loadAgent(pid, options);
     }
 

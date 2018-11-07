@@ -18,7 +18,7 @@ endif()
 INCLUDE_DIRECTORIES(${JAVA_INCLUDE_PATH})
 INCLUDE_DIRECTORIES(${JAVA_INCLUDE_PATH2})
 
-add_library(perfmap SHARED src/c/perf-map-agent.c src/c/perf-map-file.c)
+add_library(perfmap SHARED src/c/perf-map-agent.c src/c/perf-map-file.c src/c/disassembling.c src/c/symtab.c src/c/salibelf.c src/c/libproc_impl.c)
 
 find_package(Java REQUIRED)
 include(UseJava)
