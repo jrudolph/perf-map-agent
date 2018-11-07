@@ -14,4 +14,4 @@ if [ -z "$PERF_DATA_FILE" ]; then
 fi
 
 $PERF_MAP_DIR/bin/perf-java-record-stack $*
-sudo perf report -i $PERF_DATA_FILE
+sudo perf report --force -i $PERF_DATA_FILE

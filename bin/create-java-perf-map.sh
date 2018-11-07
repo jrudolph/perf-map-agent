@@ -36,7 +36,7 @@ fi
 [ -d "$JAVA_HOME" ] || (echo "JAVA_HOME directory at '$JAVA_HOME' does not exist." && false)
 
 
-if [[ "$LINUX" == "1" ]]; then
+if [[ "$LINUX" == "1" ]] && [[ $EUID -ne $TARGET_UID ]]; then
   sudo rm $PERF_MAP_FILE -f
   (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
   sudo chown root:root $PERF_MAP_FILE
