@@ -2,15 +2,16 @@
 set -e
 #set -x
 
+BIN_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
 TARGET_DIR=$1
-BIN_DIR=`dirname $0`
 
 if [ -z "$TARGET_DIR" ]; then
   echo "Please specify a target directory."
   exit
 fi
 
-ln -s $(readlink -f $BIN_DIR/perf-java-top) $TARGET_DIR
-ln -s $(readlink -f $BIN_DIR/perf-java-record-stack) $TARGET_DIR
-ln -s $(readlink -f $BIN_DIR/perf-java-report-stack) $TARGET_DIR
-ln -s $(readlink -f $BIN_DIR/perf-java-flames) $TARGET_DIR
+ln -s $BIN_DIR/perf-java-top $TARGET_DIR
+ln -s $BIN_DIR/perf-java-record-stack $TARGET_DIR
+ln -s $BIN_DIR/perf-java-report-stack $TARGET_DIR
+ln -s $BIN_DIR/perf-java-flames $TARGET_DIR
