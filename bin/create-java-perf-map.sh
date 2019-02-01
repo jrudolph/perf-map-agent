@@ -2,6 +2,8 @@
 set -e
 #set -x
 
+source $(dirname $0)/sudo-wrap.sh
+
 CUR_DIR=`pwd`
 PID=$1
 OPTIONS=$2
@@ -37,9 +39,9 @@ fi
 
 
 if [[ "$LINUX" == "1" ]]; then
-  sudo rm $PERF_MAP_FILE -f
-  (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
-  sudo chown root:root $PERF_MAP_FILE
+  runasroot rm $PERF_MAP_FILE -f
+  (cd $PERF_MAP_DIR/out && runasroot -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
+  runasroot chown root:root $PERF_MAP_FILE
 else
   rm -f $PERF_MAP_FILE
   (cd $PERF_MAP_DIR/out && $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
