@@ -45,7 +45,7 @@ public class AttachOnce {
             }
             String fullPath = lib.getAbsolutePath();
             if (!lib.exists()) {
-                System.out.printf("Expected libperfmap.so at '%s' but it didn't exist.\n", fullPath);
+                System.out.printf("Expected %s at '%s' but it didn't exist.\n", lib.getName(), fullPath);
                 System.exit(1);
             }
             else vm.loadAgentPath(fullPath, options);
