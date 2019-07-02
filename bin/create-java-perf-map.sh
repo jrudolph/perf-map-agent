@@ -36,11 +36,17 @@ fi
 [ -d "$JAVA_HOME" ] || (echo "JAVA_HOME directory at '$JAVA_HOME' does not exist." && false)
 
 
+if [ -f "$JAVA_HOME/lib/tools.jar" ]; then
+    JAVA_CLASSPATH="-cp $JAVA_HOME/lib/tools.jar"
+else
+    JAVA_CLASSPATH="--add-modules jdk.attach"
+fi
+
 if [[ "$LINUX" == "1" ]]; then
   sudo rm $PERF_MAP_FILE -f
-  (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
+  (cd $PERF_MAP_DIR/out && sudo -u \#$TARGET_UID -g \#$TARGET_GID $JAVA_HOME/bin/java $JAVA_CLASSPATH -jar $ATTACH_JAR_PATH $PID "$OPTIONS")
   sudo chown root:root $PERF_MAP_FILE
 else
   rm -f $PERF_MAP_FILE
-  (cd $PERF_MAP_DIR/out && $JAVA_HOME/bin/java -cp $ATTACH_JAR_PATH:$JAVA_HOME/lib/tools.jar net.virtualvoid.perf.AttachOnce $PID "$OPTIONS")
+  (cd $PERF_MAP_DIR/out && $JAVA_HOME/bin/java $JAVA_CLASSPATH -jar $ATTACH_JAR_PATH $PID "$OPTIONS")
 fi
