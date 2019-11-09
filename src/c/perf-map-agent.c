@@ -337,6 +337,21 @@ jvmtiError set_callbacks(jvmtiEnv *jvmti) {
     return (*jvmti)->SetEventCallbacks(jvmti, &callbacks, (jint)sizeof(callbacks));
 }
 
+JNIEXPORT jint JNICALL 
+Agent_OnLoad(JavaVM *vm, char *options, void *reserved)
+{
+    open_map_file();
+
+    jvmtiEnv *jvmti;
+    (*vm)->GetEnv(vm, (void **)&jvmti, JVMTI_VERSION_1);
+    enable_capabilities(jvmti);
+    set_callbacks(jvmti);
+    set_notification_mode(jvmti, JVMTI_ENABLE);
+
+    return 0;
+}
+
+
 JNIEXPORT jint JNICALL
 Agent_OnAttach(JavaVM *vm, char *options, void *reserved) {
     open_map_file();
