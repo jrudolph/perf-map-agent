@@ -4,8 +4,7 @@ use warnings;
 no warnings 'portable';
 use strict;
 
-my $num_args = $#ARGV + 1;
-if ($num_args != 1) {
+if (@ARGV != 1) {
     print "\nUsage: $0 perf-*.map\n";
     exit;
 }
@@ -22,13 +21,11 @@ while (my $row = <$fh>) {
   my $address = hex($parts[0]);
   my $size = hex($parts[1]);
   my $method = $parts[2];
-  my @entry = (); 
-
-  push @entry, $address;
-  push @entry, $size;
-  push @entry, $method;
-  push @map_entries, [@entry];
+  push @map_entries, [$address, $size, $method];
 }
+
+# Sort to allow for binary search
+@map_entries = sort { $a->[0] <=> $b->[0] } @map_entries;
 
 # Process STDIN and replace unkown methods with these provided by the perf-*.map file.
 while (my $row = <STDIN>) {
@@ -36,16 +33,23 @@ while (my $row = <STDIN>) {
     if ($row =~ "^              0x(.+)") {
         my $addr = hex($1);
         my $size = -1;
-        foreach my $e (@map_entries) {
-            my $entry_addr = $e->[0];
-            my $entry_size = $e->[1];
-
-            # First check if we had a match before that had a smaller entry_size. If so its a better match and we should just continue.
-            if (($size == -1 || $entry_size < $size) && $addr >= $entry_addr && $addr <= ($entry_addr + $entry_size)) {
-                $row = "              $e->[2]";
-                $size = $entry_size;
-            } 
-        } 
+        # binary search map entries
+        my ($l, $h) = (0, 0 + @map_entries);
+        while (($h - $l) > 1) {
+            my $m = int(($h + $l) / 2);
+            my $entry_addr = $map_entries[$m][0];
+            if ($entry_addr < $addr) {
+                $l = $m;
+            } else {
+                $h = $m;
+            }
+        }
+        my $entry_addr = $map_entries[$l][0];
+        my $entry_size = $map_entries[$l][1];
+        my $method =     $map_entries[$l][2];
+        if ($addr >= $entry_addr && $addr <= ($entry_addr + $entry_size)) {
+            $row = "              $method";
+        }
     }
     print "$row\n"; 
 }
